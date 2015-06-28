@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">BLEGrill</string>
+
+    <string name="sensor_page_overview">Sensor Overview</string>
+    <string name="action_settings">Settings</string>
+    <string name="temperature_unit_degree">°C</string>
+    <string name="sensor1_name_default">Sensor 1</string>
+    <string name="sensor2_name_default">Sensor 2</string>
+    <string name="upper_limit">Upper Limit</string>
+    <string name="lower_limit">Lower Limit</string>
+
+    <string name="title_activity_splash_activity">splash_activity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+
+    <string-array name="sensor_nbs">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+
+
+    <!-- Temp_Sensor_Settings Activity -->
+    <string name="title_activity_temp_sensor_settings">Temperature Sensor Settings</string>
+    <string name="header_activity_temp_sensor_settings">Sensor Settings</string>
+    <string name="alert_dialog_title">Temperatur Alarm</string>
+    <string name="alert_dialog_message">Temperatur Alarm</string>
+    <string name="alert_dialog_btn_ok">QuittAlarm</string>
+
+
+</resources>
