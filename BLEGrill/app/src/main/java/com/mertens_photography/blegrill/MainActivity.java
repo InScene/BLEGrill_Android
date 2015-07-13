@@ -1,6 +1,7 @@
 package com.mertens_photography.blegrill;
 
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -25,6 +26,7 @@ import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.Menu;
@@ -37,6 +39,10 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
+
+import com.mertens_photography.blegrill.background_service.BLE_BackgroundService;
+import com.mertens_photography.blegrill.ble.BLEAdvertisePacket;
+import com.mertens_photography.blegrill.ble.BLEService;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -62,9 +68,10 @@ public class MainActivity extends ActionBarActivity {
 
     private BluetoothGattCharacteristic characteristicTx = null;
     private BluetoothGattCharacteristic characteristicTemp1Meas = null;
-    private RBLService mBluetoothLeService;
+    private BLEService mBluetoothLeService;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothDevice mDevice = null;
+    private PendingIntent mBackgroundServicePendingIntent;
     private String mDeviceAddress;
 
     private boolean flag = true;
@@ -86,7 +93,7 @@ public class MainActivity extends ActionBarActivity {
         @Override
         public void onServiceConnected(ComponentName componentName,
                                        IBinder service) {
-            mBluetoothLeService = ((RBLService.LocalBinder) service).getService();
+            mBluetoothLeService = ((BLEService.LocalBinder) service).getService();
             if (!mBluetoothLeService.initialize()) {
                 Log.e(TAG, "Unable to initialize Bluetooth");
                 finish();
@@ -104,22 +111,22 @@ public class MainActivity extends ActionBarActivity {
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
 
-            if (RBLService.ACTION_GATT_DISCONNECTED.equals(action)) {
+            if (BLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 Toast.makeText(getApplicationContext(), "Disconnected",
                         Toast.LENGTH_SHORT).show();
                 setButtonDisable();
-            } else if (RBLService.ACTION_GATT_SERVICES_DISCOVERED
+            } else if (BLEService.ACTION_GATT_SERVICES_DISCOVERED
                     .equals(action)) {
                 Toast.makeText(getApplicationContext(), "Connected",
                         Toast.LENGTH_SHORT).show();
 
                 getGattService();
-            } else if (RBLService.ACTION_DATA_AVAILABLE.equals(action)) {
+            } else if (BLEService.ACTION_DATA_AVAILABLE.equals(action)) {
                 processReceivedData(intent);
 
-            } else if (RBLService.ACTION_GATT_RSSI.equals(action)) {
+            } else if (BLEService.ACTION_GATT_RSSI.equals(action)) {
                 // RSSI Wert
-                displayData(intent.getStringExtra(RBLService.UART_DATA));
+                displayData(intent.getStringExtra(BLEService.UART_DATA));
             }
         }
     };
@@ -132,101 +139,101 @@ public class MainActivity extends ActionBarActivity {
 
     private void processReceivedData(Intent intent){
         /* Temperature Sensor 1 */
-        if(intent.hasExtra(RBLService.SENSOR1_TEMPERATURE))
+        if(intent.hasExtra(BLEService.SENSOR1_TEMPERATURE))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR1_TEMPERATURE);
+            data = intent.getByteArrayExtra(BLEService.SENSOR1_TEMPERATURE);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(0);
             sensor.setTempMeasureData(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR1_CONFIG))
+        else if(intent.hasExtra(BLEService.SENSOR1_CONFIG))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR1_CONFIG);
+            data = intent.getByteArrayExtra(BLEService.SENSOR1_CONFIG);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(0);
             sensor.setConfig(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR1_ALARM_SETTINGS))
+        else if(intent.hasExtra(BLEService.SENSOR1_ALARM_SETTINGS))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR1_ALARM_SETTINGS);
+            data = intent.getByteArrayExtra(BLEService.SENSOR1_ALARM_SETTINGS);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(0);
             sensor.setAlarmSettings(data);
         }
         /* Temperature Sensor 2 */
-        else if(intent.hasExtra(RBLService.SENSOR2_TEMPERATURE))
+        else if(intent.hasExtra(BLEService.SENSOR2_TEMPERATURE))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR2_TEMPERATURE);
+            data = intent.getByteArrayExtra(BLEService.SENSOR2_TEMPERATURE);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(1);
             sensor.setTempMeasureData(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR2_CONFIG))
+        else if(intent.hasExtra(BLEService.SENSOR2_CONFIG))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR2_CONFIG);
+            data = intent.getByteArrayExtra(BLEService.SENSOR2_CONFIG);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(1);
             sensor.setConfig(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR2_ALARM_SETTINGS))
+        else if(intent.hasExtra(BLEService.SENSOR2_ALARM_SETTINGS))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR2_ALARM_SETTINGS);
+            data = intent.getByteArrayExtra(BLEService.SENSOR2_ALARM_SETTINGS);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(1);
             sensor.setAlarmSettings(data);
         }
         /* Temperature Sensor 3 */
-        else if(intent.hasExtra(RBLService.SENSOR3_TEMPERATURE))
+        else if(intent.hasExtra(BLEService.SENSOR3_TEMPERATURE))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR3_TEMPERATURE);
+            data = intent.getByteArrayExtra(BLEService.SENSOR3_TEMPERATURE);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(2);
             sensor.setTempMeasureData(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR3_CONFIG))
+        else if(intent.hasExtra(BLEService.SENSOR3_CONFIG))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR3_CONFIG);
+            data = intent.getByteArrayExtra(BLEService.SENSOR3_CONFIG);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(2);
             sensor.setConfig(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR3_ALARM_SETTINGS))
+        else if(intent.hasExtra(BLEService.SENSOR3_ALARM_SETTINGS))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR3_ALARM_SETTINGS);
+            data = intent.getByteArrayExtra(BLEService.SENSOR3_ALARM_SETTINGS);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(2);
             sensor.setAlarmSettings(data);
         }
         /* Temperature Sensor 4 */
-        else if(intent.hasExtra(RBLService.SENSOR4_TEMPERATURE))
+        else if(intent.hasExtra(BLEService.SENSOR4_TEMPERATURE))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR4_TEMPERATURE);
+            data = intent.getByteArrayExtra(BLEService.SENSOR4_TEMPERATURE);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(3);
             sensor.setTempMeasureData(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR4_CONFIG))
+        else if(intent.hasExtra(BLEService.SENSOR4_CONFIG))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR4_CONFIG);
+            data = intent.getByteArrayExtra(BLEService.SENSOR4_CONFIG);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(3);
             sensor.setConfig(data);
         }
-        else if(intent.hasExtra(RBLService.SENSOR4_ALARM_SETTINGS))
+        else if(intent.hasExtra(BLEService.SENSOR4_ALARM_SETTINGS))
         {
-            data = intent.getByteArrayExtra(RBLService.SENSOR3_ALARM_SETTINGS);
+            data = intent.getByteArrayExtra(BLEService.SENSOR3_ALARM_SETTINGS);
             TemperatureSensor sensor = bleDevice.getTemperatureSensor(3);
             sensor.setAlarmSettings(data);
         }
         /* Device Settings */
-        else if(intent.hasExtra(RBLService.HARDWARE_STATES))
+        else if(intent.hasExtra(BLEService.HARDWARE_STATES))
         {
-            data = intent.getByteArrayExtra(RBLService.HARDWARE_STATES);
+            data = intent.getByteArrayExtra(BLEService.HARDWARE_STATES);
             bleDevice.setHardwareStates(data);
         }
-        else if(intent.hasExtra(RBLService.MEASURE_INTERVALL))
+        else if(intent.hasExtra(BLEService.MEASURE_INTERVALL))
         {
-            data = intent.getByteArrayExtra(RBLService.MEASURE_INTERVALL);
+            data = intent.getByteArrayExtra(BLEService.MEASURE_INTERVALL);
             bleDevice.setMeasureIntervall(data);
         }
-        else if(intent.hasExtra(RBLService.NOTIFY_INTERVALL))
+        else if(intent.hasExtra(BLEService.NOTIFY_INTERVALL))
         {
-            data = intent.getByteArrayExtra(RBLService.NOTIFY_INTERVALL);
+            data = intent.getByteArrayExtra(BLEService.NOTIFY_INTERVALL);
             bleDevice.setNotifyIntervall(data);
         }
         /* Alarm Notifier */
-        else if(intent.hasExtra(RBLService.ALARM_INDICATION))
+        else if(intent.hasExtra(BLEService.ALARM_INDICATION))
         {
-            data = intent.getByteArrayExtra(RBLService.ALARM_INDICATION);
+            data = intent.getByteArrayExtra(BLEService.ALARM_INDICATION);
             if(data[0] == 1) {
                 setNotification("Da gibt es einen Alarm!");
                 startAlarmSound();
@@ -362,55 +369,55 @@ public class MainActivity extends ActionBarActivity {
 
         /* Temperature Measurement 1 */
         BluetoothGattService gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_MEASURE);
             mBluetoothLeService.setCharacteristicNotification(characteristic,
                     true);
         }
 
         /* Temperature Measurement 2 */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_MEASURE);
             mBluetoothLeService.setCharacteristicNotification(characteristic,
                     true);
         }
 
         /* Temperature Measurement 3 */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR3_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR3_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR3_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR3_MEASURE);
             mBluetoothLeService.setCharacteristicNotification(characteristic,
                     true);
         }
 
         /* Temperature Measurement 4 */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR4_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR4_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR4_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR4_MEASURE);
             mBluetoothLeService.setCharacteristicNotification(characteristic,
                     true);
         }
 
         /* Alarm Notifier */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_ALARM_NOTIFIER_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_ALARM_NOTIFIER_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_ALARM_INDICATION);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_ALARM_INDICATION);
             mBluetoothLeService.setCharacteristicNotification(characteristic,
                     true);
         }
@@ -422,91 +429,91 @@ public class MainActivity extends ActionBarActivity {
 
         /* Temperature Measurement 1 */
         BluetoothGattService gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_MEASURE);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_CONFIG);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_CONFIG);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_ALARM);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_ALARM);
             mBluetoothLeService.readCharacteristic(characteristic);
         }
 
         /* Temperature Measurement 2 */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_MEASURE);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_CONFIG);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_CONFIG);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_ALARM);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_ALARM);
             mBluetoothLeService.readCharacteristic(characteristic);
         }
 
         /* Temperature Measurement 3 */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR3_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR3_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR3_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR3_MEASURE);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR3_CONFIG);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR3_CONFIG);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR3_ALARM);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR3_ALARM);
             mBluetoothLeService.readCharacteristic(characteristic);
         }
 
         /* Temperature Measurement 4 */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR4_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR4_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR4_MEASURE);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR4_MEASURE);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR4_CONFIG);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR4_CONFIG);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR4_ALARM);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR4_ALARM);
             mBluetoothLeService.readCharacteristic(characteristic);
         }
 
         /* Device Settings */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_DEVICE_SETTING_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_DEVICE_SETTING_SERVICE);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_HARDWARE_STATES);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_HARDWARE_STATES);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_MEASURE_INTERVALL);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_MEASURE_INTERVALL);
             mBluetoothLeService.readCharacteristic(characteristic);
             characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_NOTIFY_INTERVALL);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_NOTIFY_INTERVALL);
             mBluetoothLeService.readCharacteristic(characteristic);
         }
 
         /* Alarm Notifier */
         gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_ALARM_INDICATION);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_ALARM_INDICATION);
         if(gattService != null){
 
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_ALARM_INDICATION);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_ALARM_INDICATION);
             mBluetoothLeService.readCharacteristic(characteristic);
         }
     }
@@ -519,10 +526,10 @@ public class MainActivity extends ActionBarActivity {
         readAllCharacteristics();
         /* UART */
 //        characteristicTx = gattService
-//                .getCharacteristic(RBLService.UUID_BLE_Grill_UART_TX);
+//                .getCharacteristic(BLEService.UUID_BLE_Grill_UART_TX);
 //
 //        BluetoothGattCharacteristic characteristicRx = gattService
-//                .getCharacteristic(RBLService.UUID_BLE_Grill_UART_RX);
+//                .getCharacteristic(BLEService.UUID_BLE_Grill_UART_RX);
 //        mBluetoothLeService.setCharacteristicNotification(characteristicRx,
 //                true);
 //        mBluetoothLeService.readCharacteristic(characteristicRx);
@@ -533,11 +540,11 @@ public class MainActivity extends ActionBarActivity {
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
 
-        intentFilter.addAction(RBLService.ACTION_GATT_CONNECTED);
-        intentFilter.addAction(RBLService.ACTION_GATT_DISCONNECTED);
-        intentFilter.addAction(RBLService.ACTION_GATT_SERVICES_DISCOVERED);
-        intentFilter.addAction(RBLService.ACTION_DATA_AVAILABLE);
-        intentFilter.addAction(RBLService.ACTION_GATT_RSSI);
+        intentFilter.addAction(BLEService.ACTION_GATT_CONNECTED);
+        intentFilter.addAction(BLEService.ACTION_GATT_DISCONNECTED);
+        intentFilter.addAction(BLEService.ACTION_GATT_SERVICES_DISCOVERED);
+        intentFilter.addAction(BLEService.ACTION_DATA_AVAILABLE);
+        intentFilter.addAction(BLEService.ACTION_GATT_RSSI);
 
         return intentFilter;
     }
@@ -575,8 +582,8 @@ public class MainActivity extends ActionBarActivity {
 //                        serviceUuidBytes[j] = scanRecord[i];
 //                    }
                     /* Check if the device has the BLEGrill appearance packet */
-                    RBLAdvertisePacket appearancePacket = RBLAdvertisePacket.bleGrill_Appearance_Packet();
-                    ArrayList<RBLAdvertisePacket> listPackets = RBLAdvertisePacket.convertBufferToAdvPackets(scanRecord);
+                    BLEAdvertisePacket appearancePacket = BLEAdvertisePacket.bleGrill_Appearance_Packet();
+                    ArrayList<BLEAdvertisePacket> listPackets = BLEAdvertisePacket.convertBufferToAdvPackets(scanRecord);
 //                    serviceUuid = bytesToHex(serviceUuidBytes);
                     if (listPackets.contains(appearancePacket)) {
                         mDevice = device;
@@ -584,7 +591,7 @@ public class MainActivity extends ActionBarActivity {
                    // }
 
 //                    if (stringToUuidString(serviceUuid).equals(
-//                            RBLGattAttributes.BLE_SHIELD_SERVICE
+//                            BLEGattAttributes.BLE_SHIELD_SERVICE
 //                                    .toUpperCase(Locale.ENGLISH))) {
 //                        mDevice = device;
 //                    }
@@ -627,11 +634,11 @@ public class MainActivity extends ActionBarActivity {
                 bleDevice.setNotifyIntervall(2);
 
                 BluetoothGattService gattService = mBluetoothLeService
-                        .getSupportedGattService(RBLService.UUID_BLE_GRILL_DEVICE_SETTING_SERVICE);
+                        .getSupportedGattService(BLEService.UUID_BLE_GRILL_DEVICE_SETTING_SERVICE);
                 if(gattService != null){
 
                     BluetoothGattCharacteristic characteristic = gattService
-                            .getCharacteristic(RBLService.UUID_BLE_GRILL_NOTIFY_INTERVALL);
+                            .getCharacteristic(BLEService.UUID_BLE_GRILL_NOTIFY_INTERVALL);
                     characteristic.setValue(bleDevice.getNotifyIntervallAsByte());
                     mBluetoothLeService.writeCharacteristic(characteristic);
 
@@ -665,12 +672,12 @@ public class MainActivity extends ActionBarActivity {
     private void sendQuittAlarm(){
         /* Send quitt Alarm */
         BluetoothGattService gattService = mBluetoothLeService
-                .getSupportedGattService(RBLService.UUID_BLE_GRILL_ALARM_NOTIFIER_SERVICE);
+                .getSupportedGattService(BLEService.UUID_BLE_GRILL_ALARM_NOTIFIER_SERVICE);
         if(gattService != null) {
             byte[] data = new byte[1];
             data[0]= 0x01;
             BluetoothGattCharacteristic characteristic = gattService
-                    .getCharacteristic(RBLService.UUID_BLE_GRILL_QUITT_ALARM);
+                    .getCharacteristic(BLEService.UUID_BLE_GRILL_QUITT_ALARM);
             characteristic.setValue(data);
             mBluetoothLeService.writeCharacteristic(characteristic);
         }
@@ -704,12 +711,12 @@ public class MainActivity extends ActionBarActivity {
         if(spnSensorSelected.getSelectedItemId() == 0) {
             /* Set Temperature Sensor1 Alarm settings */
             BluetoothGattService gattService = mBluetoothLeService
-                    .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
+                    .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
             if (gattService != null) {
 
                 TemperatureSensor sensor = bleDevice.getTemperatureSensor(0);
                 BluetoothGattCharacteristic characteristic = gattService
-                        .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_ALARM);
+                        .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_ALARM);
                 characteristic.setValue(sensor.getAlarmSettings());
                 mBluetoothLeService.writeCharacteristic(characteristic);
 
@@ -719,18 +726,43 @@ public class MainActivity extends ActionBarActivity {
         else if(spnSensorSelected.getSelectedItemId() == 1) {
             /* Set Temperature Sensor2 Alarm settings */
             BluetoothGattService gattService = mBluetoothLeService
-                    .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
+                    .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
             if (gattService != null) {
 
                 TemperatureSensor sensor = bleDevice.getTemperatureSensor(1);
                 BluetoothGattCharacteristic characteristic = gattService
-                        .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_ALARM);
+                        .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_ALARM);
                 characteristic.setValue(sensor.getAlarmSettings());
                 mBluetoothLeService.writeCharacteristic(characteristic);
 
                 initialSettingDone = true;
             }
         }
+    }
+
+    protected void registerServiceByAlarmManager() {
+        Intent backgroundServiceIntent = new Intent(this, BLE_BackgroundService.class);
+        mBackgroundServicePendingIntent =
+                PendingIntent.getService(this, 0, backgroundServiceIntent, 0);
+
+        //Wie gross soll das Intervall sein?
+        long interval = DateUtils.MINUTE_IN_MILLIS / 4; // Alle 20 sekunden
+
+        //Wann soll der Service das erste Mal gestartet werden?
+        long firstStart = System.currentTimeMillis() + interval;
+
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        //am.set(AlarmManager.RTC, firstStart, wtdSServicePendingIntent);
+        //am.setRepeating(AlarmManager.RTC_WAKEUP, firstStart, interval,
+        //											wtdSServicePendingIntent);
+        am.setInexactRepeating(AlarmManager.RTC, firstStart, interval,
+                mBackgroundServicePendingIntent);
+
+        // Manueller Start
+//        Intent backgroundServiceIntent = new Intent(this, BLE_BackgroundService.class);
+//        startService(backgroundServiceIntent);
+
+        Log.v("BLEGrill", "AlarmManager gesetzt");
     }
 
     @Override
@@ -768,11 +800,11 @@ public class MainActivity extends ActionBarActivity {
                     }
 
                     BluetoothGattService gattService = mBluetoothLeService
-                            .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
+                            .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_SERVICE);
                     if (gattService != null) {
 
                         BluetoothGattCharacteristic characteristic = gattService
-                                .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR1_CONFIG);
+                                .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR1_CONFIG);
 
                         characteristic.setValue(sensor.getConfig());
                         mBluetoothLeService.writeCharacteristic(characteristic);
@@ -795,11 +827,11 @@ public class MainActivity extends ActionBarActivity {
                     }
 
                     BluetoothGattService gattService = mBluetoothLeService
-                            .getSupportedGattService(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
+                            .getSupportedGattService(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_SERVICE);
                     if (gattService != null) {
 
                         BluetoothGattCharacteristic characteristic = gattService
-                                .getCharacteristic(RBLService.UUID_BLE_GRILL_TEMPSENSOR2_CONFIG);
+                                .getCharacteristic(BLEService.UUID_BLE_GRILL_TEMPSENSOR2_CONFIG);
 
                         characteristic.setValue(sensor.getConfig());
                         mBluetoothLeService.writeCharacteristic(characteristic);
@@ -880,10 +912,12 @@ public class MainActivity extends ActionBarActivity {
         }
 
         Intent gattServiceIntent = new Intent(MainActivity.this,
-                RBLService.class);
+                BLEService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
         resetViewValues();
+
+        registerServiceByAlarmManager();
     }
 
     @Override
@@ -929,6 +963,12 @@ public class MainActivity extends ActionBarActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
 
@@ -940,6 +980,13 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        /* Zerstöre Hindergrundprozess, damit dieser nicht endlos weiter läuft */
+        if(mBackgroundServicePendingIntent != null ) {
+            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            am.cancel(mBackgroundServicePendingIntent);
+        }
+
 
         if (mServiceConnection != null)
             unbindService(mServiceConnection);

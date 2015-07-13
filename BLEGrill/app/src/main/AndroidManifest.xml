@@ -49,11 +49,15 @@
         </activity>
 
         <service
-            android:name=".RBLService"
+            android:name=".ble.BLEService"
             android:enabled="true" />
-        <service
-            android:name=".GrillService"
-            android:enabled="true" />
+
+        <service android:name=".background_service.BLE_BackgroundService">
+            <intent-filter>
+                <action android:name="com.mertens_photography.blegrill.BLE_BackgroundService">
+                </action>
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".TempSensorSettingsActivity"
